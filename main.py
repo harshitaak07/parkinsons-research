@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from src.preprocessing.axivity_gait import preprocess_axivity
 from src.preprocessing.opals_gait import preprocess_opals
-from src.preprocessing.non_motor import preprocess_non_motor_with_labels
+from src.preprocessing.non_motor import preprocess_non_motor
 from src.encoders.gait_encoder import GaitEncoder
 from src.encoders.non_motor_encoder import NonMotorEncoder
 from src.encoders.time_embedding import TimeEmbedding
@@ -17,22 +17,32 @@ np.random.seed(42)
 df_axivity = preprocess_axivity("data/raw/Gait_Data___Arm_swing__Axivity__06Sep2025.csv", save=False)
 df_opals = preprocess_opals("data/raw/Gait_Data___Arm_swing__Opals__07Aug2025.csv", save=False)
 
-# Load non-motor data (you'll need to provide the paths to your JSON folders)
-# df_non_motor = preprocess_non_motor_with_labels(
-#     questionnaire_folder="path/to/questionnaire/json/folder",
-#     patients_folder="path/to/patients/json/folder",
-#     save=False
-# )
+# Load real non-motor data
+try:
+    df_non_motor = preprocess_non_motor("data/raw/non_motor/questionnaires", save=False)
+    non_motor_features = df_non_motor.drop('subject_id', axis=1).select_dtypes(include='number').values
+    print(f"Loaded {len(df_non_motor)} non-motor samples with {non_motor_features.shape[1]} features")
+except Exception as e:
+    print(f"Could not load non-motor data: {e}")
+    print("Falling back to Opals data as proxy for non-motor features")
+    non_motor_features = df_opals.select_dtypes(include='number').values
 
 # Use more samples to see variation in predictions
 df_axivity = df_axivity.head(50)
 df_opals = df_opals.head(50)
 
 gait_features = df_axivity.select_dtypes(include='number').values
-non_motor_features = df_opals.select_dtypes(include='number').values
 
-# For now, we'll use Opals data as proxy for non-motor features
-# Later replace with actual non-motor data
+# Use real non-motor data if available, otherwise use proxy
+if 'df_non_motor' in locals() and len(df_non_motor) > 0:
+    # Use real non-motor data
+    non_motor_subset = df_non_motor.head(50)  # Match the sample size
+    non_motor_features = non_motor_subset.drop('subject_id', axis=1).select_dtypes(include='number').values
+    print("Using real non-motor data for inference")
+else:
+    # Fall back to proxy
+    non_motor_features = df_opals.select_dtypes(include='number').values
+    print("Using proxy non-motor data for inference")
 delta_t = torch.rand(len(df_axivity), 1)
 
 gait_encoder = GaitEncoder(input_dim=gait_features.shape[1])

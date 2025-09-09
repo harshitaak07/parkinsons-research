@@ -2,10 +2,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from src.preprocessing.axivity_gait import preprocess_axivity
 from src.preprocessing.opals_gait import preprocess_opals
+from src.preprocessing.non_motor import preprocess_non_motor
 from src.encoders.gait_encoder import GaitEncoder
+from src.encoders.non_motor_encoder import NonMotorEncoder
 from src.encoders.time_embedding import TimeEmbedding
 from src.fusion.intermediate_fusion import IntermediateFusion
 from src.models.transform_classifier import TransformerClassifier
@@ -18,9 +21,18 @@ np.random.seed(42)
 df_axivity = preprocess_axivity("data/raw/Gait_Data___Arm_swing__Axivity__06Sep2025.csv", save=False)
 df_opals = preprocess_opals("data/raw/Gait_Data___Arm_swing__Opals__07Aug2025.csv", save=False)
 
+# Load real non-motor data
+try:
+    df_non_motor = preprocess_non_motor("data/raw/non_motor/questionnaires", save=False)
+    non_motor_features = df_non_motor.drop('subject_id', axis=1).select_dtypes(include='number').values
+    print(f"Loaded {len(df_non_motor)} non-motor samples with {non_motor_features.shape[1]} features")
+except Exception as e:
+    print(f"Could not load non-motor data: {e}")
+    print("Falling back to Opals data as proxy for non-motor features")
+    non_motor_features = df_opals.select_dtypes(include='number').values
+
 # Use all data for training
 gait_features = df_axivity.select_dtypes(include='number').values
-non_motor_features = df_opals.select_dtypes(include='number').values
 
 # Create more realistic synthetic labels (not directly correlated with input features)
 np.random.seed(42)

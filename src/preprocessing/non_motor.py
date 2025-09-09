@@ -23,17 +23,12 @@ def preprocess_non_motor(json_folder_path, save=True, save_path="data/processed/
 
     df_list = []
     for file in json_files:
-        with open(file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        # Extract questionnaire items
-        if 'item' in data:
-            temp_df = pd.DataFrame(data['item'])
-            temp_df['subject_id'] = data.get('id', os.path.basename(file).replace('.json', ''))
-            df_list.append(temp_df)
+        temp_df = pd.read_json(file)
+        temp_df['subject_id'] = os.path.basename(file).replace('.json', '').replace('questionnaire_response_', '')
+        df_list.append(temp_df)
 
     if not df_list:
-        raise ValueError("No valid JSON files found or no 'item' data in files")
+        raise ValueError("No valid JSON files found")
 
     combined_df = pd.concat(df_list, ignore_index=True)
 
@@ -87,7 +82,7 @@ def preprocess_non_motor(json_folder_path, save=True, save_path="data/processed/
         "30": "Delusions or paranoia"
     }
 
-    # Try to rename columns if they exist
+    # Rename columns
     wide_df = wide_df.rename(columns=link_id_map)
 
     # Remove duplicates
