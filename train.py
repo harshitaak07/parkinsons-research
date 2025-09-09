@@ -83,9 +83,10 @@ delta_t = torch.rand(len(df_axivity), 1)
 
 # Initialize models
 gait_encoder = GaitEncoder(input_dim=gait_features.shape[1])
+non_motor_encoder = NonMotorEncoder(input_dim=non_motor_features.shape[1])
 time_encoder = TimeEmbedding(embedding_dim=16)
 fusion = IntermediateFusion(mask_missing=False)
-transformer = TransformerClassifier(input_dim=48)  # 32 + 16 embedding dims
+transformer = TransformerClassifier(input_dim=80)  # 32 (gait) + 32 (non-motor) + 16 (time)
 
 # Loss and optimizer with class weights and regularization
 if sum(labels_np) > 0:
@@ -96,6 +97,7 @@ else:
 
 # Add weight decay for regularization
 optimizer = optim.Adam(list(gait_encoder.parameters()) +
+                       list(non_motor_encoder.parameters()) +
                        list(time_encoder.parameters()) +
                        list(fusion.parameters()) +
                        list(transformer.parameters()),
@@ -131,6 +133,7 @@ def get_batches(features, delta_t, labels, batch_size):
 
 for epoch in range(num_epochs):
     gait_encoder.train()
+    non_motor_encoder.train()
     time_encoder.train()
     fusion.train()
     transformer.train()
@@ -140,9 +143,13 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
 
         gait_emb = gait_encoder(torch.tensor(batch_gait, dtype=torch.float32))
+        # Use corresponding non-motor features for this batch
+        batch_indices = np.random.choice(len(non_motor_features), size=len(batch_gait), replace=True)
+        batch_non_motor = non_motor_features[batch_indices]
+        non_motor_emb = non_motor_encoder(torch.tensor(batch_non_motor, dtype=torch.float32))
         time_emb = time_encoder(batch_delta_t)
 
-        fused_emb = fusion(gait_emb, time_emb)
+        fused_emb = fusion(gait_emb, non_motor_emb, time_emb)
         fused_emb_seq = fused_emb.unsqueeze(1)
 
         output = transformer(fused_emb_seq)
@@ -157,6 +164,7 @@ for epoch in range(num_epochs):
     # Validation every 10 epochs
     if (epoch + 1) % 10 == 0:
         gait_encoder.eval()
+        non_motor_encoder.eval()
         time_encoder.eval()
         fusion.eval()
         transformer.eval()
@@ -165,8 +173,12 @@ for epoch in range(num_epochs):
         with torch.no_grad():
             for batch_gait, batch_delta_t, batch_labels in get_batches(val_gait, val_delta_t, val_labels, batch_size):
                 gait_emb = gait_encoder(torch.tensor(batch_gait, dtype=torch.float32))
+                # Use corresponding non-motor features for validation
+                val_indices = np.random.choice(len(non_motor_features), size=len(batch_gait), replace=True)
+                val_non_motor = non_motor_features[val_indices]
+                non_motor_emb = non_motor_encoder(torch.tensor(val_non_motor, dtype=torch.float32))
                 time_emb = time_encoder(batch_delta_t)
-                fused_emb = fusion(gait_emb, time_emb)
+                fused_emb = fusion(gait_emb, non_motor_emb, time_emb)
                 fused_emb_seq = fused_emb.unsqueeze(1)
                 output = transformer(fused_emb_seq)
                 loss = criterion(output, batch_labels)
@@ -184,6 +196,7 @@ print("Training complete.")
 
 # Evaluation on validation data (unseen data)
 gait_encoder.eval()
+non_motor_encoder.eval()
 time_encoder.eval()
 fusion.eval()
 transformer.eval()
@@ -194,8 +207,12 @@ all_labels = []
 with torch.no_grad():
     for batch_gait, batch_delta_t, batch_labels in get_batches(val_gait, val_delta_t, val_labels.numpy(), batch_size):
         gait_emb = gait_encoder(torch.tensor(batch_gait, dtype=torch.float32))
+        # Use corresponding non-motor features for evaluation
+        eval_indices = np.random.choice(len(non_motor_features), size=len(batch_gait), replace=True)
+        eval_non_motor = non_motor_features[eval_indices]
+        non_motor_emb = non_motor_encoder(torch.tensor(eval_non_motor, dtype=torch.float32))
         time_emb = time_encoder(batch_delta_t)
-        fused_emb = fusion(gait_emb, time_emb)
+        fused_emb = fusion(gait_emb, non_motor_emb, time_emb)
         fused_emb_seq = fused_emb.unsqueeze(1)
         output = transformer(fused_emb_seq)
 
@@ -223,8 +240,12 @@ all_labels_train = []
 with torch.no_grad():
     for batch_gait, batch_delta_t, batch_labels in get_batches(train_gait, train_delta_t, train_labels.numpy(), batch_size):
         gait_emb = gait_encoder(torch.tensor(batch_gait, dtype=torch.float32))
+        # Use corresponding non-motor features for training evaluation
+        train_eval_indices = np.random.choice(len(non_motor_features), size=len(batch_gait), replace=True)
+        train_eval_non_motor = non_motor_features[train_eval_indices]
+        non_motor_emb = non_motor_encoder(torch.tensor(train_eval_non_motor, dtype=torch.float32))
         time_emb = time_encoder(batch_delta_t)
-        fused_emb = fusion(gait_emb, time_emb)
+        fused_emb = fusion(gait_emb, non_motor_emb, time_emb)
         fused_emb_seq = fused_emb.unsqueeze(1)
         output = transformer(fused_emb_seq)
 
@@ -237,6 +258,7 @@ print(f"\nTraining Accuracy (for comparison): {train_accuracy:.4f}")
 
 # Save the trained models
 torch.save(gait_encoder.state_dict(), 'gait_encoder.pth')
+torch.save(non_motor_encoder.state_dict(), 'non_motor_encoder.pth')
 torch.save(time_encoder.state_dict(), 'time_encoder.pth')
 torch.save(fusion.state_dict(), 'fusion.pth')
 torch.save(transformer.state_dict(), 'transformer.pth')

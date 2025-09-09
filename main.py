@@ -50,7 +50,7 @@ non_motor_encoder = NonMotorEncoder(input_dim=non_motor_features.shape[1])
 time_encoder = TimeEmbedding(embedding_dim=16)
 
 fusion = IntermediateFusion(mask_missing=False)
-transformer = TransformerClassifier(input_dim=48 + 32)  # 32 (gait) + 32 (non-motor) + 16 (time)
+transformer = TransformerClassifier(input_dim=80)  # 32 (gait) + 32 (non-motor) + 16 (time)
 
 # Load trained model weights
 try:
