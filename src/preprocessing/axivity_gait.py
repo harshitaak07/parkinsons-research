@@ -14,7 +14,8 @@ def preprocess_axivity(raw_path, processed_path=None, save=True):
     - Save processed data if required
     """
     df = pd.read_csv(raw_path)
-    identifier_cols = ['VISNO']
+    # Keep VISNO for joining with clinical labels
+    identifier_cols = []  # Don't drop VISNO anymore
     df = df.drop(columns=[col for col in identifier_cols if col in df.columns])
     df.columns = df.columns.str.strip().str.replace(' ', '_').str.lower()
 

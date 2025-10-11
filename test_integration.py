@@ -18,8 +18,8 @@ np.random.seed(42)
 print("\n1. Testing Data Loading and Preprocessing...")
 try:
     # Load and preprocess data
-    df_axivity = preprocess_axivity("data/raw/Gait_Data___Arm_swing__Axivity__06Sep2025.csv", save=False)
-    df_opals = preprocess_opals("data/raw/Gait_Data___Arm_swing__Opals__07Aug2025.csv", save=False)
+    df_axivity = preprocess_axivity("data/raw/motor/Gait_Data___Arm_swing__Axivity__06Sep2025.csv", save=False)
+    df_opals = preprocess_opals("data/raw/motor/Gait_Data___Arm_swing__Opals__07Aug2025.csv", save=False)
 
     # Load non-motor data
     try:
