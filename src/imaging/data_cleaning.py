@@ -5,7 +5,7 @@ import warnings
 
 def qc_filter(merged_df, exclude_col='exclude'):
     if merged_df.empty:
-        warnings.warn("Input DataFrame is empty. Returning as is.")
+        warnings. warn("Input DataFrame is empty. Returning as is.")
         return merged_df
     if exclude_col in merged_df.columns:
         merged_df = merged_df[merged_df[exclude_col] != True]
