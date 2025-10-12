@@ -1,37 +1,21 @@
 import torch
 import numpy as np
-<<<<<<< HEAD
-from motor.preprocess_axivity import preprocess_axivity
-from motor.preprocess_opals import preprocess_opals
+from src.motor.axivity_data_cleaning import preprocess_axivity
+from motor.opals_data_cleaning import preprocess_opals
 from src.nonmotor.non_motor import preprocess_non_motor
-from src.motor.gait_encoder import GaitEncoder
+from motor.gait_encoder import GaitEncoder
 from src.nonmotor.non_motor_encoder import NonMotorEncoder
 from src.models.time_embedding import TimeEmbedding
 from src.models.intermediate_fusion import IntermediateFusion
-=======
-from motor.axivity_gait import preprocess_axivity
-from motor.opals_gait import preprocess_opals
-from nonmotor.non_motor import preprocess_non_motor
-from motor.gait_encoder import GaitEncoder
-from nonmotor.non_motor_encoder import NonMotorEncoder
-from models.time_embedding import TimeEmbedding
-from models.intermediate_fusion import IntermediateFusion
->>>>>>> motor-modalities
-from src.models.transform_classifier import TransformerClassifier
 
 torch.manual_seed(42)
 np.random.seed(42)
 
-<<<<<<< HEAD
-df_axivity = preprocess_axivity("data/raw/Gait_Data___Arm_swing__Axivity__06Sep2025.csv", save=False)
-df_opals = preprocess_opals("data/raw/Gait_Data___Arm_swing__Opals__07Aug2025.csv", save=False)
-=======
 # Load and preprocess data
 df_axivity = preprocess_axivity("data/raw/motor/Gait_Data___Arm_swing__Axivity__06Sep2025.csv", save=False)
 df_opals = preprocess_opals("data/raw/motor/Gait_Data___Arm_swing__Opals__07Aug2025.csv", save=False)
 
 # Load real non-motor data
->>>>>>> motor-modalities
 try:
     df_non_motor = preprocess_non_motor("data/raw/non_motor/questionnaires", save=False)
     non_motor_features = df_non_motor.drop('subject_id', axis=1).select_dtypes(include='number').values
