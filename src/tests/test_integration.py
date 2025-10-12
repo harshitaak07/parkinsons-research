@@ -1,12 +1,12 @@
 import torch
 import numpy as np
-from src.preprocessing.axivity_gait import preprocess_axivity
-from src.preprocessing.opals_gait import preprocess_opals
-from src.preprocessing.non_motor import preprocess_non_motor
-from src.encoders.gait_encoder import GaitEncoder
-from src.encoders.non_motor_encoder import NonMotorEncoder
-from src.encoders.time_embedding import TimeEmbedding
-from src.fusion.intermediate_fusion import IntermediateFusion
+from motor.axivity_gait import preprocess_axivity
+from motor.opals_gait import preprocess_opals
+from nonmotor.non_motor import preprocess_non_motor
+from motor.gait_encoder import GaitEncoder
+from nonmotor.non_motor_encoder import NonMotorEncoder
+from models.time_embedding import TimeEmbedding
+from models.intermediate_fusion import IntermediateFusion
 from src.models.transform_classifier import TransformerClassifier
 
 print("=== COMPREHENSIVE INTEGRATION TEST ===")

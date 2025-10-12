@@ -10,10 +10,10 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
-from src.preprocessing.axivity_gait import preprocess_axivity
-from src.preprocessing.opals_gait import preprocess_opals
-from src.preprocessing.non_motor import preprocess_non_motor
-from src.preprocessing.labels_loader import (
+from motor.axivity_gait import preprocess_axivity
+from motor.opals_gait import preprocess_opals
+from nonmotor.non_motor import preprocess_non_motor
+from motor.labels_loader import (
     load_motor_labels, join_gait_with_labels, create_regression_labels
 )
 # import matplotlib.pyplot as plt

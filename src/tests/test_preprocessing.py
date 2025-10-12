@@ -1,7 +1,7 @@
 import pandas as pd
-from src.preprocessing.axivity_gait import preprocess_axivity
-from src.preprocessing.opals_gait import preprocess_opals
-from src.preprocessing.non_motor import preprocess_non_motor
+from motor.axivity_gait import preprocess_axivity
+from motor.opals_gait import preprocess_opals
+from nonmotor.non_motor import preprocess_non_motor
 
 print("Testing Axivity preprocessing...")
 try:
