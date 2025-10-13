@@ -1,9 +1,5 @@
 import pandas as pd
-<<<<<<< HEAD
-from motor.preprocess_axivity import preprocess_axivity
-=======
-from motor.axivity_gait import preprocess_axivity
->>>>>>> motor-modalities
+from src.motor.axivity_data_cleaning import preprocess_axivity
 
 def main():
     df = preprocess_axivity('data/raw/motor/Gait_Data___Arm_swing__Axivity__06Sep2025.csv', save=False)

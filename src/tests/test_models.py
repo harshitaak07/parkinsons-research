@@ -1,16 +1,9 @@
 import torch
 import numpy as np
-<<<<<<< HEAD
 from src.motor.gait_encoder import GaitEncoder
 from src.nonmotor.non_motor_encoder import NonMotorEncoder
 from src.models.time_embedding import TimeEmbedding
 from src.models.intermediate_fusion import IntermediateFusion
-=======
-from motor.gait_encoder import GaitEncoder
-from nonmotor.non_motor_encoder import NonMotorEncoder
-from models.time_embedding import TimeEmbedding
-from models.intermediate_fusion import IntermediateFusion
->>>>>>> motor-modalities
 from src.models.transform_classifier import TransformerClassifier
 
 print("Testing Model Components...")

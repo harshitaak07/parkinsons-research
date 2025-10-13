@@ -10,16 +10,16 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import StandardScaler
-from motor.axivity_gait import preprocess_axivity
-from motor.opals_gait import preprocess_opals
-from nonmotor.non_motor import preprocess_non_motor
-from motor.labels_loader import (
+from src.motor.axivity_data_cleaning import preprocess_axivity
+from src.motor.opals_data_cleaning import preprocess_opals
+from src.nonmotor.non_motor import preprocess_non_motor
+from src.motor.data_fusion import (
     load_motor_labels, join_gait_with_labels, create_regression_labels, get_modality_info
 )
-from motor.gait_encoder import GaitEncoder
-from nonmotor.non_motor_encoder import NonMotorEncoder
-from models.time_embedding import TimeEmbedding
-from models.intermediate_fusion import IntermediateFusion
+from src.motor.gait_encoder import GaitEncoder
+from src.nonmotor.non_motor_encoder import NonMotorEncoder
+from src.models.time_embedding import TimeEmbedding
+from src.models.intermediate_fusion import IntermediateFusion
 from src.models.transform_classifier import TransformerClassifier
 
 # Set random seeds for reproducibility
