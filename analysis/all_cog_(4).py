@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 
 
 # Load data
-filterdata = pd.read_csv(r"E:\pd-data\enrollment\filterdata.csv", low_memory=False)
-pdaq = pd.read_csv(r"E:\pd-data\non motor\cog modified\PDAQ-27_11Sep2025.csv")
+filterdata = pd.read_csv(r"C:\Users\harsh\Downloads\filterdata.csv", low_memory=False)
+pdaq = pd.read_csv(r"C:\Users\harsh\Downloads\PDAQ-27_11Nov2025.csv")
 
 # Convert to string to ensure consistent key types
 filterdata['PATNO'] = filterdata['PATNO'].astype(str)
@@ -40,12 +40,12 @@ for c in cols:
     cog[c] = pd.to_numeric(cog[c], errors='coerce').fillna(0).astype(int)
 
 # df is your pandas DataFrame
-cog.to_csv('E:\pd-data/train1.csv', index=False)
+cog.to_csv(r'C:\Users\harsh\Downloads\train1.csv', index=False)
 
 import pandas as pd
 
 # Load the participant status file
-df_cohort_full = pd.read_csv(r"E:\pd-data\enrollment\Participant_Status_16Sep2025.csv")
+df_cohort_full = pd.read_csv(r"C:\Users\harsh\Downloads\Participant_Status_11Nov2025.csv")
 
 # Print columns to identify the correct cohort column name
 print(df_cohort_full.columns)
@@ -213,9 +213,9 @@ print(table.schema)
 print(cog[['PATNO', 'EVENT_ID']].isnull().sum())
 
 file_paths = [
-    r'E:\pd-data\non motor\cog modified\Cognitive_Categorization_11Sep2025.csv',
-    r'E:\pd-data\non motor\cog modified\Neuro_QoL__Cognition_Function_-_Short_Form_11Sep2025.csv',
-    r'E:\pd-data\non motor\cog modified\Neuro_QoL__Communication_-_Short_Form_11Sep2025.csv'
+    r"C:\Users\harsh\Downloads\Cognitive_Categorization_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\Neuro_QoL__Cognition_Function_-_Short_Form_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\Neuro_QoL__Communication_-_Short_Form_11Nov2025.csv"
 ]
 
 selected_cols_file1 = ['PATNO', 'EVENT_ID', 'PTCGBOTH',	'COGDECLN','FNCDTCOG','COGSTATE','COGDXCL','RVWNPSY','COGCAT','COGCAT_TEXT']
@@ -271,7 +271,7 @@ merged_df['visit_phase'] = merged_df['EVENT_ID'].map(visit_categories)
 print(merged_df[['EVENT_ID', 'visit_phase']].drop_duplicates())
 
 # df is your pandas DataFrame
-merged_df.to_csv('E:\pd-data/train2.csv', index=False)
+merged_df.to_csv(r'C:\Users\harsh\Downloads\train2.csv', index=False)
 
 # Ensure PATNO is string in both DataFrames
 df_cohort['PATNO'] = df_cohort['PATNO'].astype(str)

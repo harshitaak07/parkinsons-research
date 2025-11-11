@@ -10,16 +10,19 @@ Original file is located at
 import pandas as pd
 import numpy as np
 
-df1=pd.read_csv(r'E:\pd-data\motor\Participant_Motor_Function_Questionnaire_13Oct2025.csv')
+df1=pd.read_csv(r"C:\Users\harsh\Downloads\Participant_Motor_Function_Questionnaire_11Nov2025.csv")
 
 cols_to_drop = ['PAG_NAME', 'INFODT', 'CMPLBY2','ORIG_ENTRY','LAST_UPDATE']
 df1 = df1.drop(cols_to_drop, axis=1)
 
-new_csv_files = [r'E:\pd-data\motor\Neuro_QoL__Upper_Extremity_Function_-_Short_Form_13Oct2025.csv',
-r'E:\pd-data\motor\Neuro_QoL__Lower_Extremity_Function__Mobility__-_Short_Form_13Oct2025.csv',
-r'E:\pd-data\motor\MDS-UPDRS_Part_I_Patient_Questionnaire_13Oct2025.csv',
-r'E:\pd-data\motor\MDS-UPDRS_Part_I_13Oct2025.csv',
-r'E:\pd-data\motor\MDS_UPDRS_Part_II__Patient_Questionnaire_13Oct2025.csv']  # or add 'file5.csv'
+new_csv_files = [
+    r"C:\Users\harsh\Downloads\Neuro_QoL__Upper_Extremity_Function_-_Short_Form_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\Neuro_QoL__Lower_Extremity_Function__Mobility__-_Short_Form_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\MDS-UPDRS_Part_I_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\MDS-UPDRS_Part_I_Patient_Questionnaire_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\MDS_UPDRS_Part_II__Patient_Questionnaire_11Nov2025.csv"
+]
+  # or add 'file5.csv'
 
 for fname in new_csv_files:
     temp_df = pd.read_csv(fname)
@@ -36,7 +39,7 @@ print(list(df1.columns))
 
 df1.head(100)
 
-threshold = len(df) * 0.5
+threshold = len(df1) * 0.5
 df1.dropna(thresh=threshold, axis=1, inplace=True)
 
 df1.head()
@@ -45,7 +48,7 @@ import pandas as pd
 import numpy as np
 
 # ---------- 1. Load and prepare cohort data ----------
-df_cohort_full = pd.read_csv(r"E:\pd-data\enrollment\Participant_Status_16Sep2025.csv")
+df_cohort_full = pd.read_csv(r"C:\Users\harsh\Downloads\Participant_Status_11Nov2025.csv")
 print("Cohort columns:", df_cohort_full.columns)
 
 # Replace 'COHORT' below with the actual cohort column name if different

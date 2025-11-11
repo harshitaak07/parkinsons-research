@@ -10,7 +10,7 @@ Original file is located at
 import pandas as pd
 
 # Load your two CSV files - please replace with actual file paths
-df2 = pd.read_csv(r"E:\pd-data\non motor\mood\QUIP-Current-Short_11Sep2025.csv")
+df2 = pd.read_csv(r"C:\Users\harsh\Downloads\QUIP-Current-Short_11Nov2025.csv")
 
 df2['PATNO'] = df2['PATNO'].astype(str)
 df2['EVENT_ID'] = df2['EVENT_ID'].astype(str)
@@ -35,7 +35,7 @@ print(type(df2_Selected['PATNO'].iloc[0]))  # Should be <class 'str'>
 import pandas as pd
 
 # Load the participant status file
-df_cohort_full = pd.read_csv(r"E:\pd-data\enrollment\Participant_Status_16Sep2025.csv")
+df_cohort_full = pd.read_csv(r"C:\Users\harsh\Downloads\Participant_Status_11Nov2025.csv")
 
 # Print columns to identify the correct cohort column name
 print(df_cohort_full.columns)
@@ -49,10 +49,6 @@ print(df2_Selected.shape)
 print(df2_Selected.head())
 
 print("Sample PATNOs in df2_Selected:", df2_Selected['PATNO'].unique()[:10])
-print("Sample PATNOs in pd_patnos:", list(pd_patnos)[:10])
-
-print(type(list(pd_patnos)[0]))  # Should be <class 'str'>
-print(type(df2_Selected['PATNO'].iloc[0]))  # Should be <class 'str'>
 
 # Ensure PATNO is string in both DataFrames
 df_cohort['PATNO'] = df_cohort['PATNO'].astype(str)
@@ -64,6 +60,10 @@ df_cohort['PATNO'] = df_cohort['PATNO'].str.strip()
 pd_patnos = set(df_cohort[df_cohort['COHORT'] == '1']['PATNO'])
 df2_Selected = df2_Selected[df2_Selected['PATNO'].isin(pd_patnos)]
 print(pd_patnos)
+
+print("Sample PATNOs in pd_patnos:", list(pd_patnos)[:10])
+print(type(list(pd_patnos)[0]))  # Should be <class 'str'>
+print(type(df2_Selected['PATNO'].iloc[0]))  # Should be <class 'str'>
 
 df2_Selected.head()
 print(df2_Selected.shape)
@@ -190,8 +190,8 @@ df2_Selected.to_parquet('df2_Selected.parquet', engine='pyarrow', index=False)
 df2_Selected.columns
 
 file_paths = [
-    r'E:\pd-data\non motor\neuro\Clock_Drawing_11Sep2025.csv',
-    r'E:\pd-data\non motor\neuro\Montreal_Cognitive_Assessment__MoCA__11Sep2025.csv']
+    r"C:\Users\harsh\Downloads\Clock_Drawing_11Nov2025.csv",
+    r"C:\Users\harsh\Downloads\Montreal_Cognitive_Assessment__MoCA__11Nov2025.csv"]
 
 selected_cols_file1 = [
     'PATNO', 'EVENT_ID','CLCKPII','CLCK2HND','CLCKNMRK',
@@ -322,7 +322,7 @@ merged_df.to_parquet(os.path.join(os.getcwd(), 'Merged_Df.parquet'))
 import pandas as pd
 
 file_paths = [
-    r'E:\pd-data\non motor\sleep\REM_Sleep_Behavior_Disorder_Questionnaire_11Sep2025.csv'
+    r"C:\Users\harsh\Downloads\REM_Sleep_Behavior_Disorder_Questionnaire_11Nov2025.csv"
 ]
 
 # Load the CSV file

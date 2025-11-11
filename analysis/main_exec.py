@@ -208,6 +208,7 @@ class UnifiedFusedEncoder(nn.Module):
         self.nonmotor_encoder = nonmotor_encoder
         self.imaging_encoder = imaging_encoder
         self.latent_dim = latent_dim
+        self.freeze_encoders = freeze_encoders
 
         if freeze_encoders:
             for param in self.motor_encoder.parameters():
@@ -373,12 +374,14 @@ def load_encoder_with_check(encoder, weight_path, device):
         encoder.load_state_dict(new_state_dict, strict=True)
         print(f"✓ Loaded weights from {weight_path}")
         return True
-    except RuntimeError as e:
-        if "size mismatch" in str(e) or "Missing key(s)" in str(e) or "Unexpected key(s)" in str(e):
-            print(f"⚠ Warning: Dimension or key mismatch detected in {weight_path}")
-            print(f"  {str(e)[:200]}...")
-            # Attempt a non-strict load if it's a size mismatch on final layers, otherwise use random init
-            # Since the problem asks for a fixed version, we stick to the simpler (safer) random init
+    except (RuntimeError, FileNotFoundError) as e:
+        if isinstance(e, FileNotFoundError) or "size mismatch" in str(e) or "Missing key(s)" in str(e) or "Unexpected key(s)" in str(e):
+            print(f"⚠ Warning: Weights file not found or dimension/key mismatch detected in {weight_path}")
+            if isinstance(e, FileNotFoundError):
+                print(f"  File does not exist: {weight_path}")
+            else:
+                print(f"  {str(e)[:200]}...")
+            # Initialize with random weights
             print(f"  Initializing encoder with random weights instead")
             return False
         else:
@@ -838,10 +841,10 @@ def main():
         {'params': model.classifier.parameters()},
         {'params': model.fused_encoder.fusion.parameters()}
     ]
-    if not fused_encoder.fused_encoder.freeze_encoders:
-        optimizer_params.append({'params': model.fused_encoder.motor_encoder.parameters()})
-        optimizer_params.append({'params': model.fused_encoder.nonmotor_encoder.parameters()})
-        optimizer_params.append({'params': model.fused_encoder.imaging_encoder.parameters()})
+    if not fused_encoder.freeze_encoders:
+        optimizer_params.append({'params': fused_encoder.motor_encoder.parameters()})
+        optimizer_params.append({'params': fused_encoder.nonmotor_encoder.parameters()})
+        optimizer_params.append({'params': fused_encoder.imaging_encoder.parameters()})
 
     optimizer = torch.optim.Adam(optimizer_params, lr=1e-3)
 

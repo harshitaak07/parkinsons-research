@@ -9,7 +9,7 @@ Original file is located at
 
 import pandas as pd
 
-dti=pd.read_csv(r'E:\pd-data\imaging\DTI_Regions_of_Interest_13Oct2025.csv');
+dti=pd.read_csv(r"C:\Users\harsh\Downloads\DTI_Regions_of_Interest_11Nov2025.csv");
 
 dti.head()
 
@@ -20,7 +20,7 @@ dti.shape
 import pandas as pd
 
 # Load the participant status file
-df_cohort_full = pd.read_csv(r"E:\pd-data\enrollment\Participant_Status_16Sep2025.csv")
+df_cohort_full = pd.read_csv(r"C:\Users\harsh\Downloads\Participant_Status_11Nov2025.csv")
 
 # Print columns to identify the correct cohort column name
 print(df_cohort_full.columns)
@@ -536,9 +536,9 @@ import pandas as pd
 
 # List of your filenames with full or relative paths
 file_list = [
-    "E:\pd-data\imaging\FS7_APARC_CTH_13Oct2025.csv",
-    "E:\pd-data\imaging\FS7_ASEG_VOL_13Oct2025.csv",
-    "E:\pd-data\imaging\MRIQC_13Oct2025.csv"
+    r"C:\Users\harsh\Downloads\FS7_APARC_CTH_13Oct2025.csv",
+    r"C:\Users\harsh\Downloads\FS7_ASEG_VOL_13Oct2025.csv",
+    r"C:\Users\harsh\Downloads\MRIQC_11Nov2025.csv"
 ]
 
 # Read each file into a DataFrame and store in a list
