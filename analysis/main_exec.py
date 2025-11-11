@@ -39,6 +39,38 @@ from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
+import sys
+import datetime
+
+def print_inference_report(patno, visit, diagnosis, confidence, modality_weights, key_features):
+    """Pretty console output for real model inference."""
+
+    # Date/time
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    sys.stdout.write(f"$ python multimodal_pd_predictor.py --patno {patno} --visit {visit}\n\n")
+    sys.stdout.write("====================================================================\n")
+    sys.stdout.write("SEQUENTIAL MULTIMODAL PD RISK ASSESSMENT FRAMEWORK\n")
+    sys.stdout.write(f"(Inference Run: {now} IST)\n")
+    sys.stdout.write("====================================================================\n\n")
+
+    sys.stdout.write(f"--- FINAL PREDICTION ---\n")
+    sys.stdout.write(f"DIAGNOSIS:               {diagnosis}\n")
+    sys.stdout.write(f"PREDICTION CONFIDENCE:   {confidence:.1f}%\n")
+    sys.stdout.write("--------------------------------------------------------------------\n\n")
+
+    sys.stdout.write("--- INTERPRETABILITY: MODALITY CONTRIBUTION (ATTENTION WEIGHTS) ---\n")
+    sys.stdout.write("(Explaining *why* the prediction was made: Total must sum to 100%)\n")
+    sys.stdout.write("| Modality | Contribution (%) | Specific Feature Highlight |\n")
+    sys.stdout.write("|----------|------------------|----------------------------|\n")
+
+    for (modality, weight), highlight in zip(modality_weights, key_features):
+        bar = f"{weight*100:5.1f}%"
+        sys.stdout.write(f"| {modality:<8} | {bar:<16} | {highlight:<26} |\n")
+
+    sys.stdout.write("--------------------------------------------------------------------\n\n")
+
+
 try:
     import shap
     SHAP_AVAILABLE = True
@@ -1052,330 +1084,105 @@ def main():
     print("PIPELINE COMPLETE")
     print("="*70)
 
+    # ============================================================================
+    # REAL INFERENCE ON SAMPLE TEST PATIENTS
+    # ============================================================================
+
+    print("\n" + "="*70)
+    print("REAL INFERENCE ON SAMPLE TEST PATIENTS")
+    print("="*70)
+
+    # Select a few sample patients from the test set for demonstration
+    # Try to pick one from each stage if available
+    test_patient_ids = dataset.patient_ids
+    test_labels = [dataset.label_map[pid] for pid in test_patient_ids]
+
+    # Find indices for each stage
+    early_indices = [i for i, lbl in enumerate(test_labels) if lbl == 0][:1]  # Take first early
+    mid_indices = [i for i, lbl in enumerate(test_labels) if lbl == 1][:1]    # Take first mid
+    late_indices = [i for i, lbl in enumerate(test_labels) if lbl == 2][:1]   # Take first late
+
+    sample_indices = early_indices + mid_indices + late_indices
+    sample_patients = [test_patient_ids[i] for i in sample_indices]
+
+    stage_names = ['Early Stage', 'Mid Stage', 'Late Stage']
+
+    model.eval()
+    with torch.no_grad():
+        for idx, (pat_idx, stage_name) in enumerate(zip(sample_indices, stage_names)):
+            if pat_idx >= len(test_subset):
+                continue  # Skip if index out of range
+
+            # Get patient data
+            motor_x, nonmotor_x, imaging_x, patno = test_subset[pat_idx]
+            motor_x = motor_x.unsqueeze(0).to(device)  # Add batch dim
+            nonmotor_x = tuple(x.unsqueeze(0).to(device) for x in nonmotor_x)
+            imaging_x = imaging_x.unsqueeze(0).to(device)
+
+            # Run model
+            logits, fused_emb, individual_embs = model(motor_x, nonmotor_x, imaging_x)
+            probs = F.softmax(logits, dim=1).cpu().numpy()[0]
+            pred_stage = np.argmax(probs)
+            confidence = probs[pred_stage] * 100
+
+            # Attention weights
+            attn_weights = individual_embs['attention_weights'].cpu().numpy()[0]  # Shape can vary: (num_heads, seq_len, seq_len), (seq_len, seq_len), or (seq_len,)
+            # Average to get modality importance weights
+            if attn_weights.ndim == 3:
+                modality_weights = attn_weights.mean(axis=0).mean(axis=1)  # Average over heads and target positions
+            elif attn_weights.ndim == 2:
+                modality_weights = attn_weights.mean(axis=1)  # Average over target positions
+            else:  # ndim == 1
+                modality_weights = attn_weights  # Already the weights
+            modality_weights = modality_weights / modality_weights.sum()  # Normalize to sum to 1
+
+            print(f"\n{'='*80}")
+            print(f"INFERENCE REPORT #{idx+1}: {stage_name.upper()}")
+            print(f"{'='*80}")
+
+            print(f"PATIENT ID: {patno}")
+            print(f"VISIT: Test Set Sample")
+            print(f"Date: {pd.Timestamp.now().strftime('%Y-%m-%d')}")
+
+            print(f"\nMODALITY FEATURES EXTRACTED:")
+            print(f"[1] MOTOR FEATURES ({len(data_dict['motor_cols'])} dimensions): Latest visit data")
+            print(f"[2] NON-MOTOR FEATURES: Sequence data across 5 domains")
+            print(f"[3] IMAGING FEATURES ({len(data_dict['imaging_cols'])} dimensions): MRI/DTI data")
+
+            print(f"\nENCODER OUTPUTS (Latent Representations):")
+            motor_emb = individual_embs['motor'].cpu().numpy()[0][:5]  # First 5 dims
+            nm_emb = individual_embs['nonmotor'].cpu().numpy()[0][:5]
+            img_emb = individual_embs['imaging'].cpu().numpy()[0][:5]
+            print(f"  Motor Encoder:     [16-dim] → [{', '.join(f'{x:.2f}' for x in motor_emb)}, ...]")
+            print(f"  Non-Motor Encoder: [16-dim] → [{', '.join(f'{x:.2f}' for x in nm_emb)}, ...]")
+            print(f"  Imaging Encoder:   [16-dim] → [{', '.join(f'{x:.2f}' for x in img_emb)}, ...]")
+            print(f"  Fused Embedding:   [48-dim] → Ready for classification")
+
+            # --- New Pretty Inference Output ---
+            pred_label = stage_names[pred_stage].upper()
+            diagnosis = f"{pred_label} PARKINSON'S DISEASE"
+            modality_names = ["MOTOR", "NON-MOTOR", "IMAGING"]
+            modality_weights_list = list(zip(modality_names, modality_weights))
+            key_features = [
+                "Motor symptom score (UPDRS-II)",
+                "Cognitive / Sleep domain status",
+                "MRI/DTI signal abnormalities"
+            ]
+
+            print_inference_report(
+                patno=patno,
+                visit="Test Visit",
+                diagnosis=diagnosis,
+                confidence=confidence,
+                modality_weights=modality_weights_list,
+                key_features=key_features
+            )
+
+
+    print(f"\n{'='*80}")
+    print("REAL INFERENCE COMPLETE")
+    print(f"{'='*80}")
+
 if __name__ == '__main__':
     # Execute the main function when the script is run
     main()
-
-"""
-Quick data inspector to check parquet file structures
-Run this to understand your data before processing
-"""
-
-import pandas as pd
-import os
-
-def inspect_parquet_file(filename):
-    """Inspect a parquet file and print useful information"""
-    if not os.path.exists(filename):
-        print(f"❌ {filename} not found")
-        return
-
-    print(f"\n{'='*70}")
-    print(f"FILE: {filename}")
-    print(f"{'='*70}")
-
-    try:
-        df = pd.read_parquet(filename, engine='pyarrow')
-
-        print(f"Shape: {df.shape[0]} rows × {df.shape[1]} columns")
-        print(f"\nColumns ({len(df.columns)}):")
-        print(df.columns.tolist())
-
-        print(f"\nFirst few rows:")
-        print(df.head(3))
-
-        print(f"\nData types:")
-        print(df.dtypes.value_counts())
-
-        # Check for key columns
-        key_cols = ['PATNO', 'EVENT_ID', 'VISCODE', 'EXAMDATE', 'Measure']
-        present_keys = [col for col in key_cols if col in df.columns]
-        print(f"\nKey columns present: {present_keys}")
-
-        if 'PATNO' in df.columns:
-            print(f"Unique patients: {df['PATNO'].nunique()}")
-
-        # Check for missing values
-        missing = df.isnull().sum()
-        if missing.sum() > 0:
-            print(f"\nColumns with missing values (top 10):")
-            print(missing[missing > 0].sort_values(ascending=False).head(10))
-
-    except Exception as e:
-        print(f"❌ Error reading {filename}: {e}")
-
-# List of files to inspect
-files = [
-    'motor.parquet',
-    'cog.parquet',
-    'merged_df.parquet',
-    'df2_Selected.parquet',
-    'Merged_Df.parquet',
-    'sleep.parquet',
-    'dti.parquet',
-    'mri.parquet'
-]
-
-print("="*70)
-print("PARKINSON'S DATA FILE INSPECTOR")
-print("="*70)
-
-for filename in files:
-    inspect_parquet_file(filename)
-
-print("\n" + "="*70)
-print("INSPECTION COMPLETE")
-print("="*70)
-
-import sys
-
-def print_simulated_output():
-    """Prints the hardcoded, simulated model inference output to the console."""
-
-    # --- SIMULATED DATA ---
-    patno = "A001"
-    visit = "V02"
-    diagnosis = "EARLY STAGE PARKINSON'S DISEASE"
-    confidence = "93.8%"
-
-    # Attention weights: The core finding that Imaging (47%) > Non-Motor (37%) > Motor (16%)
-    weights = [
-        ("IMAGING", "47%", "DTI - Substantia Nigra (Low FA value)"),
-        ("NON-MOTOR", "37%", "Sleep Status (RBD) (Confirmed)"),
-        ("MOTOR", "16%", "NP2WALK (Walking - Score 1)")
-    ]
-
-    # --- PRINTING TO CONSOLE ---
-    sys.stdout.write(f"$ python multimodal_pd_predictor.py --patno {patno} --visit {visit}\n\n")
-    sys.stdout.write("====================================================================\n")
-    sys.stdout.write("SEQUENTIAL MULTIMODAL PD RISK ASSESSMENT FRAMEWORK\n")
-    sys.stdout.write(f"(Inference Run: 2025-11-06 11:30:04 IST)\n")
-    sys.stdout.write("====================================================================\n\n")
-
-    sys.stdout.write(f"--- INPUT SUMMARY (Patient {patno} / Baseline + 6 Months) ---\n")
-    sys.stdout.write("| Modality | Input Vector Status | Key Clinical Score |\n")
-    sys.stdout.write("|----------|---------------------|--------------------|\n")
-    sys.stdout.write("| IMAGING  | VAE Encoded 16D     | DTI Status: Anomalous |\n")
-    sys.stdout.write("| NON-MOTOR| VAE Encoded 16D     | PDAQ Score: 8/40 |\n")
-    sys.stdout.write("| MOTOR    | Transformer 16D     | MDS-UPDRS II: 2.0 |\n")
-    sys.stdout.write("--------------------------------------------------------------------\n\n")
-
-    sys.stdout.write("--- FINAL PREDICTION ---\n")
-    sys.stdout.write(f"DIAGNOSIS:               {diagnosis}\n")
-    sys.stdout.write(f"PREDICTION CONFIDENCE:   {confidence}\n")
-    sys.stdout.write("--------------------------------------------------------------------\n\n")
-
-    sys.stdout.write("--- INTERPRETABILITY: MODALITY CONTRIBUTION (ATTENTION WEIGHTS) ---\n")
-    sys.stdout.write("(Explaining *why* the prediction was made: Total must sum to 100%)\n")
-    sys.stdout.write("| Modality | Contribution (%) | Specific Feature Highlight |\n")
-    sys.stdout.write("|----------|------------------|----------------------------|\n")
-
-    # Print the weights, bolding the key IMAGING feature
-    for modality, contribution, highlight in weights:
-        if modality == "IMAGING":
-            sys.stdout.write(f"| **{modality:<8}** | **{contribution:<16}** | **{highlight:<26}** |\n")
-        else:
-            sys.stdout.write(f"| {modality:<8} | {contribution:<16} | {highlight:<26} |\n")
-
-    sys.stdout.write("--------------------------------------------------------------------\n")
-    sys.stdout.write(f"*Rationale: The model's decision for 'Early Stage' is primarily driven by the IMAGING encoder's detection of structural pathology, consistent with the pre-motor phase of PD. Non-Motor contribution validates the prodromal phase.*\n\n")
-
-    sys.stdout.write("--- NEXT CLINICAL ACTION ---\n")
-    sys.stdout.write("RECOMMENDATION: Schedule follow-up imaging (MRI/DTI) within 6 months. Monitor Non-Motor symptoms closely.\n")
-    sys.stdout.write("MODEL TRAJECTORY: Predicted transition to Mid-Stage within 30-48 months (p=0.74).\n\n")
-    sys.stdout.write("$ _\n")
-
-
-if __name__ == "__main__":
-    print_simulated_output()
-
-"""
-Parkinson's Disease Stage Prediction - Clinical Inference Output
-Simulates realistic command-line output for unseen patient data
-"""
-
-import time
-import sys
-
-def print_header():
-    print("\n")
-    print(" "*20 + "PARKINSON'S DISEASE STAGE PREDICTION SYSTEM")
-    print(" "*25 + "Multimodal Deep Learning Framework")
-    print("="*80 + "\n")
-
-def simulate_loading():
-    print("Loading pre-trained models...")
-    time.sleep(0.3)
-    print("  ✓ Motor Encoder (Transformer, 16-dim) loaded")
-    time.sleep(0.2)
-    print("  ✓ Non-Motor Encoder (LSTM-based, 16-dim) loaded")
-    time.sleep(0.2)
-    print("  ✓ Imaging Encoder (VAE, 16-dim) loaded")
-    time.sleep(0.2)
-    print("  ✓ Attention Fusion Layer (48-dim output) loaded")
-    time.sleep(0.2)
-    print("  ✓ Stage Classifier (3-class) loaded")
-    print("\nAll models loaded successfully!\n")
-    time.sleep(0.3)
-
-def print_patient_info(patient_id, visit):
-
-    print(f"PATIENT ID: {patient_id}")
-    print(f"VISIT: {visit}")
-    print(f"Date: 2024-11-06")
-
-
-def print_modality_features():
-    print("MODALITY FEATURES EXTRACTED:")
-
-
-    print("\n[1] MOTOR FEATURES (14 dimensions):")
-    print("    • Speech: 1.2/4.0          • Tremor at rest: 2.3/4.0")
-    print("    • Salivation: 0.8/4.0      • Rising from chair: 1.8/4.0")
-    print("    • Handwriting: 2.1/4.0     • Walking: 2.5/4.0")
-    print("    • Total Motor Score: 32/132")
-
-    print("\n[2] NON-MOTOR FEATURES (205 dimensions across 5 domains):")
-    print("    • Cognitive (101): Memory impairment, time management difficulty")
-    print("    • Psychological (35): Mild apathy, mood fluctuations")
-    print("    • Sleep (13): REM behavior disorder, vivid dreaming")
-    print("    • Autonomic (35): Mild orthostatic hypotension")
-    print("    • Sensory (21): Hyposmia detected")
-
-    print("\n[3] IMAGING FEATURES (147 dimensions):")
-    print("    • MRI (115): Reduced caudate volume, putamen atrophy")
-    print("    • DTI (32): White matter integrity loss in substantia nigra")
-    print("    • Quality metrics: CNR=1.82, SNR=12.3")
-
-    print("\n"  + "\n")
-
-def print_encoder_outputs():
-    print("ENCODER OUTPUTS (Latent Representations):")
-
-    print("  Motor Encoder:     [16-dim] → [0.23, -0.45, 0.67, 0.12, ...]")
-    print("  Non-Motor Encoder: [16-dim] → [-0.18, 0.52, -0.31, 0.78, ...]")
-    print("  Imaging Encoder:   [16-dim] → [0.44, -0.22, 0.55, -0.09, ...]")
-    print("\n  Fused Embedding:   [48-dim] → Ready for classification")
-    print( "\n")
-
-def print_attention_weights():
-    print("ATTENTION WEIGHTS (Cross-Modal Importance):")
-
-    print("  These weights indicate how much each modality contributes to the final prediction.\n")
-
-    print("  Motor Features:      ████████████░░░░░░░░  0.342 (34.2%)")
-    print("  Non-Motor Features:  ███████░░░░░░░░░░░░░  0.238 (23.8%)")
-    print("  Imaging Features:    ████████████████░░░░  0.420 (42.0%)")
-
-    print("\n" + "\n")
-
-def print_feature_importance():
-    print("TOP 10 DISCRIMINATIVE FEATURES (SHAP Values):")
-
-    print("  Rank  Feature                          Modality    SHAP Value")
-    print("  ")
-    print("   1.   Putamen Volume                   Imaging     +0.847")
-    print("   2.   Handwriting Score (NP2HWRT)      Motor       +0.723")
-    print("   3.   Tremor at Rest (NP2TRMR)         Motor       +0.681")
-    print("   4.   DTI: Substantia Nigra FA         Imaging     +0.619")
-    print("   5.   Walking Difficulty (NP2WALK)     Motor       +0.592")
-    print("   6.   Memory Impairment (DIFFREM)      Non-Motor   +0.547")
-    print("   7.   REM Behavior Disorder            Non-Motor   +0.501")
-    print("   8.   Caudate Volume                   Imaging     +0.478")
-    print("   9.   Rising from Chair (NP2RISE)      Motor       +0.446")
-    print("  10.   Hyposmia Severity                Non-Motor   +0.412")
-
-    print("\n" + "\n")
-
-def print_stage_predictions():
-    print("STAGE PREDICTION PROBABILITIES:")
-
-    print("\n  Early Stage:  ███░░░░░░░░░░░░░░░░░░  0.142 (14.2%)")
-    print("  Mid Stage:    ███████████████████░░░  0.783 (78.3%)")
-    print("  Late Stage:   ██░░░░░░░░░░░░░░░░░░░  0.075 (7.5%)")
-
-    print("\n  PREDICTED STAGE: MID STAGE (Confidence: 78.3%)")
-    print("  ")
-
-    print("\n" + "\n")
-
-
-def print_model_metadata():
-    print("MODEL METADATA:")
-
-    print(f"  Framework Version: 1.0.0")
-    print(f"  Training Dataset: PPMI (n=387 patients)")
-    print(f"  Cross-Validation Accuracy: 86.3% ± 2.1%")
-    print(f"  External Validation Accuracy: 82.9%")
-    print(f"  Macro F1-Score: 85.4%")
-    print(f"  AUC: 0.873")
-    print(f"  Inference Time: 47ms")
-    print("\n" + "\n")
-
-def main():
-    """Main function to simulate clinical inference output"""
-
-    print_header()
-    simulate_loading()
-
-    # Patient 1: Mid-stage prediction
-    print("\n" + "█"*80)
-    print(" "*30 + "INFERENCE REPORT #1")
-    print("█"*80 + "\n")
-
-    print_patient_info("PPMI_4721", "V08 (Month 24)")
-    print_modality_features()
-    print_encoder_outputs()
-    print_attention_weights()
-    print_feature_importance()
-    print_stage_predictions()
-
-
-    # Additional patient (Early stage)
-    print("\n\n" + "█"*80)
-    print(" "*30 + "INFERENCE REPORT #2")
-    print("█"*80 + "\n")
-
-    print_patient_info("PPMI_3892", "V04 (Month 12)")
-
-
-    print("ATTENTION WEIGHTS (Cross-Modal Importance):")
-
-    print("  Motor Features:      ██████████░░░░░░░░░░  0.298 (29.8%)")
-    print("  Non-Motor Features:  ██████░░░░░░░░░░░░░░  0.215 (21.5%)")
-    print("  Imaging Features:    ████████████████████  0.487 (48.7%)")
-
-    print("\n  PREDICTED STAGE: EARLY STAGE (Confidence: 86.1%)")
-    print("  " )
-
-    print("\n" +  "\n")
-
-    # Patient 3: Late stage
-    print("\n" + "█"*80)
-    print(" "*30 + "INFERENCE REPORT #3")
-    print("█"*80 + "\n")
-
-    print_patient_info("PPMI_5103", "V15 (Month 48)")
-
-
-    print("ATTENTION WEIGHTS (Cross-Modal Importance):")
-
-    print("  Motor Features:      ██████████████████░░  0.461 (46.1%)")
-    print("  Non-Motor Features:  ████████████░░░░░░░░  0.312 (31.2%)")
-    print("  Imaging Features:    ██████████░░░░░░░░░░  0.227 (22.7%)")
-
-    print("\n  PREDICTED STAGE: LATE STAGE (Confidence: 91.7%)")
-    print("  " )
-
-    print("\n" +  "\n")
-
-    print_model_metadata()
-
-    print("\n" + "="*80)
-    print("                     INFERENCE COMPLETE")
-    print("                All predictions saved to database")
-    print( "\n")
-
-if __name__ == "__main__":
-    main()
-
